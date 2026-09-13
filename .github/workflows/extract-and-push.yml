@@ -1,0 +1,53 @@
+name: Traek Klimakompasset-data og push til Bubble
+
+# To maader at starte koerslen paa:
+#  1) repository_dispatch  — det Bubble kalder, hver gang en kunde uploader en fil
+#  2) workflow_dispatch    — manuel koersel fra GitHub UI, praktisk til test/retry
+on:
+  repository_dispatch:
+    types: [extract_klimakompasset]
+  workflow_dispatch:
+    inputs:
+      file_url:
+        description: "URL til .xlsx-filen der skal behandles"
+        required: true
+        type: string
+      upload_id:
+        description: "Valgfrit: unique id paa Bubble-statusposten der skal opdateres"
+        required: false
+        type: string
+
+# Forhindrer at to koersler for SAMME upload_id kaemper om at skrive til Bubble
+# samtidig, hvis Bubble skulle finde paa at sende samme dispatch to gange.
+# (Loeser ikke dubletter fra en bevidst manuel gen-koersel — se README.)
+concurrency:
+  group: klimakompasset-${{ github.event.client_payload.upload_id || inputs.upload_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  extract-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sæt Node.js op
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Installer afhaengigheder
+        run: npm ci
+
+      - name: Kør udtraek og push til Bubble
+        env:
+          FILE_URL: ${{ github.event.client_payload.file_url || inputs.file_url }}
+          UPLOAD_ID: ${{ github.event.client_payload.upload_id || inputs.upload_id }}
+          BUBBLE_API_ROOT: ${{ secrets.BUBBLE_API_ROOT }}
+          BUBBLE_API_TOKEN: ${{ secrets.BUBBLE_API_TOKEN }}
+          BUBBLE_ALLE_POSTER_TYPE: ${{ secrets.BUBBLE_ALLE_POSTER_TYPE }}
+          BUBBLE_ENOEGLETAL_TYPE: ${{ secrets.BUBBLE_ENOEGLETAL_TYPE }}
+          BUBBLE_STATUS_TYPE: ${{ secrets.BUBBLE_STATUS_TYPE }}
+        run: npm start
