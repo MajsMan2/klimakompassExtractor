@@ -55,7 +55,7 @@ test/
 git init   # hvis du ikke allerede har koert det
 git add .
 git commit -m "Klimakompasset extractor"
-git remote add origin https://github.com/<dit-brugernavn>/<dit-repo>.git
+git remote add origin https://github.com/MajsMan2/klimakompassExtractor.git
 git push -u origin main
 ```
 
