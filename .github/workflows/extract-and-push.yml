@@ -12,16 +12,10 @@ on:
         description: "URL til .xlsx-filen der skal behandles"
         required: true
         type: string
-      upload_id:
-        description: "Valgfrit: unique id paa Bubble-statusposten der skal opdateres"
-        required: false
-        type: string
 
-# Forhindrer at to koersler for SAMME upload_id kaemper om at skrive til Bubble
-# samtidig, hvis Bubble skulle finde paa at sende samme dispatch to gange.
-# (Loeser ikke dubletter fra en bevidst manuel gen-koersel — se README.)
+# Forhindrer to samtidige imports af den samme uploadede fil.
 concurrency:
-  group: klimakompasset-${{ github.event.client_payload.upload_id || inputs.upload_id || github.run_id }}
+  group: klimakompasset-${{ github.event.client_payload.file_url || inputs.file_url || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -44,10 +38,8 @@ jobs:
       - name: Kør udtraek og push til Bubble
         env:
           FILE_URL: ${{ github.event.client_payload.file_url || inputs.file_url }}
-          UPLOAD_ID: ${{ github.event.client_payload.upload_id || inputs.upload_id }}
           BUBBLE_API_ROOT: ${{ secrets.BUBBLE_API_ROOT }}
           BUBBLE_API_TOKEN: ${{ secrets.BUBBLE_API_TOKEN }}
           BUBBLE_ALLE_POSTER_TYPE: ${{ secrets.BUBBLE_ALLE_POSTER_TYPE }}
           BUBBLE_ENOEGLETAL_TYPE: ${{ secrets.BUBBLE_ENOEGLETAL_TYPE }}
-          BUBBLE_STATUS_TYPE: ${{ secrets.BUBBLE_STATUS_TYPE }}
         run: npm start

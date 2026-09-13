@@ -5,7 +5,6 @@
 //   1. Hent .xlsx-filen (fra URL sendt af Bubble, eller en lokal fil)
 //   2. Traek "Data (alle poster)" og "Data (E-nøgletal)" ud som JSON
 //   3. Bulk-opret raekkerne i Bubble
-//   4. (Valgfrit) Opdater en statuspost i Bubble, saa frontenden ved besked
 
 import { readFile } from 'node:fs/promises';
 import { loadConfig } from './config.js';
@@ -98,16 +97,6 @@ async function main() {
 
     const totalFailed = allePosterResult.failed + eNoegletalResult.failed;
 
-    await bubble.updateStatus(config.statusType, config.uploadId, {
-      status: totalFailed > 0 ? 'completed_with_errors' : 'completed',
-      message:
-        totalFailed > 0
-          ? `${totalFailed} raekker blev afvist af Bubble. Se Actions-log for detaljer.`
-          : 'Udtraek og import gennemfoert.',
-      rows_alle_poster: allePosterResult.created,
-      rows_e_noegletal: eNoegletalResult.created,
-    });
-
     if (totalFailed > 0) {
       // Nogle raekker blev afvist (typisk Privacy Rules) — gør koerslen synligt
       // "fejlet" i Actions, selvom resten af dataene naaede frem.
@@ -118,14 +107,6 @@ async function main() {
     }
   } catch (err) {
     console.error(`[index] Fejl under koersel: ${err.message}`);
-
-    await bubble.updateStatus(config.statusType, config.uploadId, {
-      status: 'failed',
-      message: err.message.slice(0, 500),
-      rows_alle_poster: 0,
-      rows_e_noegletal: 0,
-    });
-
     process.exitCode = 1;
   }
 }

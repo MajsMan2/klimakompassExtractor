@@ -1,5 +1,4 @@
-// Klient til Bubbles Data API: bulk-opretter raekker og (valgfrit) opdaterer
-// en statuspost, saa Bubble-siden ved om koersel lykkedes.
+// Klient til Bubbles Data API: bulk-opretter raekker.
 //
 // Bulk-endpointet (POST /obj/<type>/bulk) forventer text/plain med ét
 // JSON-objekt pr. linje (ikke en JSON-array), og svarer selv med text/plain,
@@ -86,39 +85,5 @@ export class BubbleClient {
     }
 
     return summary;
-  }
-
-  /**
-   * Opdaterer en eksisterende "status"-post i Bubble, hvis konfigureret.
-   * Fejler bevidst IKKE koerslen hvis denne kaldsfejler — dataene er allerede
-   * gemt paa det tidspunkt, saa vi vil hellere logge en advarsel end kaste
-   * hele jobbet vaek paa en status-opdatering.
-   */
-  async updateStatus(statusType, recordId, fields) {
-    if (!statusType || !recordId) return;
-
-    if (this.dryRun) {
-      console.log(`[bubble] (dry-run) ville PATCH ${statusType}/${recordId}:`, fields);
-      return;
-    }
-
-    try {
-      const response = await fetchWithRetry(
-        `${this.apiRoot}/${statusType}/${recordId}`,
-        {
-          method: 'PATCH',
-          headers: { ...this._authHeaders(), 'Content-Type': 'application/json' },
-          body: JSON.stringify(fields),
-        },
-        { retries: this.maxRetries, timeoutMs: this.requestTimeoutMs }
-      );
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
-        console.warn(`[bubble] Kunne ikke opdatere statuspost ${recordId}: HTTP ${response.status} — ${text.slice(0, 300)}`);
-      }
-    } catch (err) {
-      console.warn(`[bubble] Kunne ikke opdatere statuspost ${recordId}: ${err.message}`);
-    }
   }
 }

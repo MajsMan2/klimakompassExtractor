@@ -14,16 +14,14 @@ Kunde uploader .xlsx i Bubble
         │
         ▼
 Bubble-workflow:
-  1. (valgfrit) opret statuspost, status = "queued"
-  2. API Connector-kald → POST /repos/OWNER/REPO/dispatches (GitHub)
+  1. API Connector-kald → POST /repos/OWNER/REPO/dispatches (GitHub)
         │  { event_type: "extract_klimakompasset",
-        │    client_payload: { file_url, upload_id } }
+        │    client_payload: { file_url } }
         ▼
 GitHub Actions (repository_dispatch)
   1. Henter .xlsx fra file_url
   2. Parser "Data (alle poster)" og "Data (E-nøgletal)" → JSON
   3. Bulk-opretter raekkerne i Bubble (chunket, med retries)
-  4. PATCH statuspost → "completed" / "completed_with_errors" / "failed"
         │
         ▼
 Bubble Data Types opdateret — kunden kan filtrere/vise dataene
@@ -40,7 +38,7 @@ minuts tid foer raekkerne dukker op i Bubble, afhaengig af filstoerrelse.
 src/
   index.js       Entrypoint — orkestrerer hele flowet
   excel.js       Finder og parser de to faner, renser feltnavne
-  bubble.js      Bubble Data API-klient (bulk create + status-opdatering)
+  bubble.js      Bubble Data API-klient (bulk create)
   http.js        fetch med timeout + eksponentiel backoff
   config.js      Laeser og validerer miljoevariabler/secrets
 test/
@@ -84,7 +82,6 @@ GitHub repo → Settings → Secrets and variables → Actions → New repositor
 | `BUBBLE_API_TOKEN` | Din Bubble Private Key (Settings → API i Bubble-editoren) |
 | `BUBBLE_ALLE_POSTER_TYPE` | API-navnet paa Data Type'n for "alle poster" |
 | `BUBBLE_ENOEGLETAL_TYPE` | API-navnet paa Data Type'n for "E-nøgletal" |
-| `BUBBLE_STATUS_TYPE` | *(valgfrit)* API-navnet paa en status-Data Type — se trin 5. Udelad secreten helt for at springe status-feedback over. |
 
 > **Tip:** Data Type'ns API-navn er ikke altid det samme som visningsnavnet i
 > editoren. Tjek det praecise navn under Bubble → Settings → API → Data API-fanen.
@@ -110,37 +107,15 @@ GitHub, ikke omvendt):
   {
     "event_type": "extract_klimakompasset",
     "client_payload": {
-      "file_url": "<dynamisk: uploadet fils URL>",
-      "upload_id": "<dynamisk: unique id paa statusposten, se trin 5>"
+      "file_url": "<dynamisk: uploadet fils URL>"
     }
   }
   ```
 
 Kald det fra den workflow, der koerer naar en kunde uploader filen.
 
-> `client_payload` maa maks. indeholde 10 felter paa oeverste niveau — fin
-> med de to her, men vaerd at vide hvis I udvider senere.
-
-### 5. (Anbefalet til produktion) Status-tilbagemelding
-
-Uden dette kan I ikke se fra Bubble-siden, om en koersel lykkedes, delvist
-lykkedes, eller fejlede — det ligger kun i Actions-loggen. Til en
-produktionsapp med kunde-uploads anbefaler vi at saette det op:
-
-1. Lav en Data Type (fx `climate_upload`) med felterne:
-   - `status` (text)
-   - `message` (text)
-   - `rows_alle_poster` (number)
-   - `rows_e_noegletal` (number)
-2. Lad Bubble-workflowet oprette en ny post i denne type **foer**
-   dispatch-kaldet, med `status = "queued"`.
-3. Brug den nye posts unique id som `upload_id` i `client_payload` (trin 4).
-4. Saet `BUBBLE_STATUS_TYPE`-secreten til denne Data Types API-navn.
-5. Byg din Bubble-UI til at reagere paa feltet `status`, naar det aendrer
-   sig til `completed`, `completed_with_errors` eller `failed`.
-
-Uden denne opsaetning koerer alt som foer — scriptet springer blot
-status-opdateringen over, hvis `BUBBLE_STATUS_TYPE` ikke er sat.
+> `client_payload` maa maks. indeholde 10 felter paa oeverste niveau. Denne
+> integration bruger kun `file_url`.
 
 ## Test lokalt
 
@@ -187,17 +162,13 @@ overskriver hinanden stille og roligt.
 - Netvaerkskald (bade filhentning og Bubble-kald) forsoeges automatisk igen
   ved timeout eller 5xx-fejl, med eksponentiel backoff (`MAX_RETRIES`,
   standard 3 forsoeg).
-- To dispatches med samme `upload_id` koerer ikke samtidigt (se
-  `concurrency` i workflow-filen) — det reducerer, men fjerner ikke helt,
-  risikoen for dubletter hvis Bubble skulle sende samme trigger to gange.
-  Den robuste loesning er at tjekke i Bubble-workflowet, om status allerede
-  er `queued`/`completed`, foer I dispatcher igen.
+- To dispatches med samme `file_url` koerer ikke samtidigt (se `concurrency`
+  i workflow-filen). Det reducerer, men fjerner ikke helt, risikoen for
+  dubletter hvis Bubble sender samme trigger igen efter den foerste koersel.
 
 ## Fejlhaandtering
 
 - Mangler en fane (fx pga. en aeldre skabelon-version), eller en paakraevet
-  secret, stopper koerslen med en tydelig fejlbesked — og hvis
-  `BUBBLE_STATUS_TYPE` er sat, faar statusposten `status = "failed"` med
-  samme besked.
+  secret, stopper koerslen med en tydelig fejlbesked i Actions-loggen.
 - Alt logges til Actions' egen log (repo → Actions-fanen → vælg koerslen),
   inkl. antal raekker fundet pr. fane og feltmapping.

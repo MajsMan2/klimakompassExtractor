@@ -49,15 +49,9 @@ export function loadConfig() {
     allePosterType: bubbleField('BUBBLE_ALLE_POSTER_TYPE', 'alle_poster'),
     eNoegletalType: bubbleField('BUBBLE_ENOEGLETAL_TYPE', 'e_noegletal'),
 
-    // Valgfri status-tilbagemelding til Bubble. Hvis ikke sat (og ikke
-    // dry-run), springes det over. I dry-run faar den en placeholder, saa
-    // test:local ogsaa viser hvordan status-opdateringen ser ud.
-    statusType: optional('BUBBLE_STATUS_TYPE', dryRun ? 'status_placeholder' : null),
-
     // Input: enten en URL sendt fra Bubble (client_payload), eller en lokal
     // fil til test via --local-file.
     fileUrl: optional('FILE_URL', undefined),
-    uploadId: optional('UPLOAD_ID', dryRun ? 'local-test-upload' : undefined),
     localFile,
 
     // Drift.
