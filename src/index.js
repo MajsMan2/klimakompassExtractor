@@ -57,6 +57,10 @@ function summarizeBatch(label, result) {
   }
 }
 
+function assignUser(records, userId) {
+  return records.map((record) => ({ ...record, user: userId }));
+}
+
 async function main() {
   let config;
   try {
@@ -80,17 +84,19 @@ async function main() {
   try {
     const buffer = await loadFileBuffer(config);
     const { allePoster, eNoegletal } = extractKlimakompasset(buffer);
+    const allePosterWithUser = assignUser(allePoster, config.userId);
+    const eNoegletalWithUser = assignUser(eNoegletal, config.userId);
 
     const allePosterResult = await bubble.bulkCreate(
       config.allePosterType,
-      allePoster,
+      allePosterWithUser,
       config.bulkChunkSize
     );
     summarizeBatch('Data (alle poster)', allePosterResult);
 
     const eNoegletalResult = await bubble.bulkCreate(
       config.eNoegletalType,
-      eNoegletal,
+      eNoegletalWithUser,
       config.bulkChunkSize
     );
     summarizeBatch('Data (E-noegletal)', eNoegletalResult);

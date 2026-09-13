@@ -16,12 +16,13 @@ Kunde uploader .xlsx i Bubble
 Bubble-workflow:
   1. API Connector-kald → POST /repos/OWNER/REPO/dispatches (GitHub)
         │  { event_type: "extract_klimakompasset",
-        │    client_payload: { file_url } }
+        │    client_payload: { file_url, user_id } }
         ▼
 GitHub Actions (repository_dispatch)
   1. Henter .xlsx fra file_url
   2. Parser "Data (alle poster)" og "Data (E-nøgletal)" → JSON
-  3. Bulk-opretter raekkerne i Bubble (chunket, med retries)
+  3. Knytter hver række til uploadende Bubble-bruger
+  4. Bulk-opretter raekkerne i Bubble (chunket, med retries)
         │
         ▼
 Bubble Data Types opdateret — kunden kan filtrere/vise dataene
@@ -107,15 +108,17 @@ GitHub, ikke omvendt):
   {
     "event_type": "extract_klimakompasset",
     "client_payload": {
-      "file_url": "<dynamisk: uploadet fils URL>"
+      "file_url": "<file_url>",
+      "user_id": "<user_id>"
     }
   }
   ```
 
 Kald det fra den workflow, der koerer naar en kunde uploader filen.
 
-> `client_payload` maa maks. indeholde 10 felter paa oeverste niveau. Denne
-> integration bruger kun `file_url`.
+> `file_url` skal sættes til den uploadede fils URL, og `user_id` til
+> `Current User's unique id`. `client_payload` maa maks. indeholde 10 felter
+> paa oeverste niveau.
 
 ## Test lokalt
 
@@ -150,6 +153,13 @@ koersel (se Actions-loggen), saa I altid kan se præcis hvilke felter der
 skal oprettes i Bubble. To overskrifter der rammer samme renset noegle i
 samme raekke faar automatisk et `_2`, `_3` … suffiks, saa data aldrig
 overskriver hinanden stille og roligt.
+
+## Brugerrelation
+
+Opret et felt ved navn `user` på begge import-Data Types og sæt feltets type
+til **User**. Importen sætter feltet til den `user_id`, som Bubble-workflowet
+sender med filens URL. Dermed kan Privacy Rules fx lade brugere se data, hvor
+`This thing's user is Current User`.
 
 ## Graenser og skalering
 

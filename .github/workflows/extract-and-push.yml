@@ -12,6 +12,10 @@ on:
         description: "URL til .xlsx-filen der skal behandles"
         required: true
         type: string
+      user_id:
+        description: "Bubble unique id på brugeren, der uploadede filen"
+        required: true
+        type: string
 
 # Forhindrer to samtidige imports af den samme uploadede fil.
 concurrency:
@@ -38,6 +42,7 @@ jobs:
       - name: Kør udtraek og push til Bubble
         env:
           FILE_URL: ${{ github.event.client_payload.file_url || inputs.file_url }}
+          USER_ID: ${{ github.event.client_payload.user_id || inputs.user_id }}
           BUBBLE_API_ROOT: ${{ secrets.BUBBLE_API_ROOT }}
           BUBBLE_API_TOKEN: ${{ secrets.BUBBLE_API_TOKEN }}
           BUBBLE_ALLE_POSTER_TYPE: ${{ secrets.BUBBLE_ALLE_POSTER_TYPE }}

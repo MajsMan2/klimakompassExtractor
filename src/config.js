@@ -52,6 +52,9 @@ export function loadConfig() {
     // Input: enten en URL sendt fra Bubble (client_payload), eller en lokal
     // fil til test via --local-file.
     fileUrl: optional('FILE_URL', undefined),
+    // Hver importeret række skal knyttes til den Bubble-bruger, der uploadede
+    // filen. I dry-run bruges en placeholder, så parsing kan testes lokalt.
+    userId: dryRun ? optional('USER_ID', 'local-test-user') : required('USER_ID'),
     localFile,
 
     // Drift.
