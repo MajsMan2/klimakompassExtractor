@@ -11,6 +11,38 @@ import { fetchWithRetry } from './http.js';
 
 const BUBBLE_BULK_HARD_LIMIT = 1000; // Haardt loft sat af Bubble, ikke konfigurerbart.
 
+/**
+ * Bubble can return one result per row even when the overall HTTP status is
+ * 400 because one row in a bulk request failed. Keep the successful rows in
+ * the summary rather than treating the entire chunk as unprocessed.
+ */
+function addBulkResults(text, summary) {
+  const lines = text.split('\n').filter((line) => line.trim().length > 0);
+  let resultCount = 0;
+
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line);
+      if (typeof parsed.status !== 'string') continue;
+
+      resultCount += 1;
+      if (parsed.status === 'success') {
+        summary.created += 1;
+      } else {
+        summary.failed += 1;
+        if (summary.errors.length < 10) {
+          summary.errors.push(parsed.message || JSON.stringify(parsed));
+        }
+      }
+    } catch {
+      // Ignore non-result lines here. An HTTP failure without any valid result
+      // lines is handled by the caller as a regular request failure.
+    }
+  }
+
+  return resultCount;
+}
+
 export class BubbleClient {
   constructor({ apiRoot, apiToken, requestTimeoutMs, maxRetries, dryRun }) {
     this.apiRoot = apiRoot;
@@ -57,29 +89,21 @@ export class BubbleClient {
         { retries: this.maxRetries, timeoutMs: this.requestTimeoutMs }
       );
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => '');
+      // eslint-disable-next-line no-await-in-loop
+      const text = await response.text().catch(() => '');
+      const resultCount = addBulkResults(text, summary);
+
+      if (!response.ok && resultCount === 0) {
         throw new Error(`${batchLabel} fejlede med HTTP ${response.status}: ${text.slice(0, 500)}`);
       }
 
-      // eslint-disable-next-line no-await-in-loop
-      const text = await response.text();
-      const lines = text.split('\n').filter((line) => line.trim().length > 0);
-
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.status === 'success') {
-            summary.created += 1;
-          } else {
-            summary.failed += 1;
-            if (summary.errors.length < 10) {
-              summary.errors.push(parsed.message || JSON.stringify(parsed));
-            }
-          }
-        } catch {
-          // Uventet linjeformat — taell den som fejlet, men vaelt ikke hele koerslen.
-          summary.failed += 1;
+      if (resultCount < chunk.length) {
+        const unreported = chunk.length - resultCount;
+        summary.failed += unreported;
+        if (summary.errors.length < 10) {
+          summary.errors.push(
+            `${batchLabel}: Bubble returnerede kun resultat for ${resultCount} af ${chunk.length} rækker (HTTP ${response.status}).`
+          );
         }
       }
     }

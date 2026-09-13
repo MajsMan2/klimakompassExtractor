@@ -36,6 +36,15 @@ function isBlankCell(value) {
   return value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
 }
 
+function isMissingValue(value) {
+  if (isBlankCell(value)) return true;
+
+  // Klimakompasset writes this placeholder when a numerical E-nøgletal value
+  // cannot be calculated. Bubble number fields must receive a number or no
+  // value at all, never this display text.
+  return typeof value === 'string' && /^\(?\s*ikke\s+angivet\s*\)?$/i.test(value.trim());
+}
+
 function rowStats(row) {
   const values = row.filter((value) => !isBlankCell(value));
   return {
@@ -124,9 +133,9 @@ function rowsToRecords(rows, fields) {
 
       for (const { column, key } of fields) {
         const value = row[column];
-        // Omitting empty values avoids overwriting Bubble defaults and is safer
-        // than sending null for fields with a more specific Bubble type.
-        if (!isBlankCell(value)) record[key] = value;
+        // Omitting missing values avoids overwriting Bubble defaults and is
+        // safer than sending null or a display placeholder to typed fields.
+        if (!isMissingValue(value)) record[key] = value;
       }
 
       return record;
