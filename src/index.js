@@ -4,7 +4,8 @@
 // Flow:
 //   1. Hent .xlsx-filen (fra URL sendt af Bubble, eller en lokal fil)
 //   2. Traek "Data (alle poster)" og "Data (E-nøgletal)" ud som JSON
-//   3. Bulk-opret raekkerne i Bubble
+//   3. Knyt rækkerne til den uploadende bruger og virksomhed
+//   4. Bulk-opret raekkerne i Bubble
 
 import { readFile } from 'node:fs/promises';
 import { loadConfig } from './config.js';
@@ -57,8 +58,8 @@ function summarizeBatch(label, result) {
   }
 }
 
-function assignUser(records, userId) {
-  return records.map((record) => ({ ...record, user: userId }));
+function assignRelations(records, userId, companyId) {
+  return records.map((record) => ({ ...record, user: userId, company: companyId }));
 }
 
 async function main() {
@@ -84,19 +85,19 @@ async function main() {
   try {
     const buffer = await loadFileBuffer(config);
     const { allePoster, eNoegletal } = extractKlimakompasset(buffer);
-    const allePosterWithUser = assignUser(allePoster, config.userId);
-    const eNoegletalWithUser = assignUser(eNoegletal, config.userId);
+    const allePosterWithRelations = assignRelations(allePoster, config.userId, config.companyId);
+    const eNoegletalWithRelations = assignRelations(eNoegletal, config.userId, config.companyId);
 
     const allePosterResult = await bubble.bulkCreate(
       config.allePosterType,
-      allePosterWithUser,
+      allePosterWithRelations,
       config.bulkChunkSize
     );
     summarizeBatch('Data (alle poster)', allePosterResult);
 
     const eNoegletalResult = await bubble.bulkCreate(
       config.eNoegletalType,
-      eNoegletalWithUser,
+      eNoegletalWithRelations,
       config.bulkChunkSize
     );
     summarizeBatch('Data (E-noegletal)', eNoegletalResult);
