@@ -39,10 +39,13 @@ function isBlankCell(value) {
 function isMissingValue(value) {
   if (isBlankCell(value)) return true;
 
-  // Klimakompasset writes this placeholder when a numerical E-nøgletal value
-  // cannot be calculated. Bubble number fields must receive a number or no
-  // value at all, never this display text.
-  return typeof value === 'string' && /^\(?\s*ikke\s+angivet\s*\)?$/i.test(value.trim());
+  // Klimakompasset uses these display values when a numeric value is absent or
+  // not applicable. Bubble number fields must receive a number or no value,
+  // never placeholder text.
+  return (
+    typeof value === 'string' &&
+    /^\(?\s*ikke\s+(?:angivet|relevant)\s*\)?$/i.test(value.trim())
+  );
 }
 
 function rowStats(row) {
