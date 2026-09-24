@@ -52,11 +52,12 @@ export function loadConfig() {
     // Input: enten en URL sendt fra Bubble (client_payload), eller en lokal
     // fil til test via --local-file.
     fileUrl: optional('FILE_URL', undefined),
-    // Hver importeret række skal knyttes til den Bubble-bruger og -virksomhed,
-    // der uploadede filen. I dry-run bruges placeholders, så parsing kan
-    // testes lokalt.
+    // Hver importeret række skal knyttes til den Bubble-bruger, -virksomhed
+    // og det år, som platformen sendte med uploaden. I dry-run bruges
+    // placeholders, så parsing kan testes lokalt.
     userId: dryRun ? optional('USER_ID', 'local-test-user') : required('USER_ID'),
     companyId: dryRun ? optional('COMPANY_ID', 'local-test-company') : required('COMPANY_ID'),
+    yearId: dryRun ? optional('YEAR_ID', 'local-test-year') : required('YEAR_ID'),
     localFile,
 
     // Drift.

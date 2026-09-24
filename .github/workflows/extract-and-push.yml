@@ -20,6 +20,10 @@ on:
         description: "Bubble unique id på virksomheden, som importen tilhører"
         required: true
         type: string
+      year_id:
+        description: "Bubble unique id på året, som importen tilhører"
+        required: true
+        type: string
 
 # Forhindrer to samtidige imports af den samme uploadede fil.
 concurrency:
@@ -48,6 +52,7 @@ jobs:
           FILE_URL: ${{ github.event.client_payload.file_url || inputs.file_url }}
           USER_ID: ${{ github.event.client_payload.user_id || inputs.user_id }}
           COMPANY_ID: ${{ github.event.client_payload.company_id || inputs.company_id }}
+          YEAR_ID: ${{ github.event.client_payload.year_id || inputs.year_id }}
           BUBBLE_API_ROOT: ${{ secrets.BUBBLE_API_ROOT }}
           BUBBLE_API_TOKEN: ${{ secrets.BUBBLE_API_TOKEN }}
           BUBBLE_ALLE_POSTER_TYPE: ${{ secrets.BUBBLE_ALLE_POSTER_TYPE }}
