@@ -68,6 +68,7 @@ function assignRelations(records, userId, companyId, yearId) {
 }
 
 async function main() {
+  const runStartedAt = Date.now();
   let config;
   try {
     config = loadConfig();
@@ -88,8 +89,13 @@ async function main() {
   });
 
   try {
+    const fileStartedAt = Date.now();
     const buffer = await loadFileBuffer(config);
+    console.log(`[index] Fil hentet paa ${((Date.now() - fileStartedAt) / 1000).toFixed(1)} s.`);
+
+    const parseStartedAt = Date.now();
     const { allePoster, eNoegletal } = extractKlimakompasset(buffer);
+    console.log(`[index] Excel parset paa ${((Date.now() - parseStartedAt) / 1000).toFixed(1)} s.`);
     const allePosterWithRelations = assignRelations(
       allePoster,
       config.userId,
@@ -103,32 +109,42 @@ async function main() {
       config.yearId
     );
 
-    const allePosterResult = await bubble.bulkCreate(
-      config.allePosterType,
-      allePosterWithRelations,
-      config.bulkChunkSize
-    );
-    summarizeBatch('Data (alle poster)', allePosterResult);
+    // Begge datatyper er uafhaengige og sendes derfor til Bubble samtidigt.
+    const bubbleStartedAt = Date.now();
+    const [allePosterOutcome, eNoegletalOutcome] = await Promise.allSettled([
+      bubble.bulkCreate(config.allePosterType, allePosterWithRelations, config.bulkChunkSize),
+      bubble.bulkCreate(config.eNoegletalType, eNoegletalWithRelations, config.bulkChunkSize),
+    ]);
+    console.log(`[index] Bubble-kald faerdige paa ${((Date.now() - bubbleStartedAt) / 1000).toFixed(1)} s.`);
 
-    const eNoegletalResult = await bubble.bulkCreate(
-      config.eNoegletalType,
-      eNoegletalWithRelations,
-      config.bulkChunkSize
-    );
-    summarizeBatch('Data (E-noegletal)', eNoegletalResult);
+    let hasRequestFailure = false;
+    let totalFailed = 0;
+    for (const [label, outcome] of [
+      ['Data (alle poster)', allePosterOutcome],
+      ['Data (E-noegletal)', eNoegletalOutcome],
+    ]) {
+      if (outcome.status === 'fulfilled') {
+        summarizeBatch(label, outcome.value);
+        totalFailed += outcome.value.failed;
+      } else {
+        console.error(`[index] ${label} — Bubble-kald fejlede: ${outcome.reason.message}`);
+        hasRequestFailure = true;
+      }
+    }
 
-    const totalFailed = allePosterResult.failed + eNoegletalResult.failed;
-
-    if (totalFailed > 0) {
+    if (totalFailed > 0 || hasRequestFailure) {
       // Nogle raekker blev afvist (typisk Privacy Rules) — gør koerslen synligt
       // "fejlet" i Actions, selvom resten af dataene naaede frem.
-      console.error(`[index] Foerdig med ${totalFailed} afviste raekker.`);
+      if (totalFailed > 0) console.error(`[index] Foerdig med ${totalFailed} afviste raekker.`);
       process.exitCode = 1;
     } else {
       console.log('[index] Foerdig — alt blev importeret.');
     }
+    console.log(`[index] Samlet koerselstid: ${((Date.now() - runStartedAt) / 1000).toFixed(1)} s.`);
   } catch (err) {
-    console.error(`[index] Fejl under koersel: ${err.message}`);
+    console.error(
+      `[index] Fejl under koersel efter ${((Date.now() - runStartedAt) / 1000).toFixed(1)} s: ${err.message}`
+    );
     process.exitCode = 1;
   }
 }
