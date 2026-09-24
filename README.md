@@ -157,6 +157,10 @@ skal oprettes i Bubble. To overskrifter der rammer samme renset noegle i
 samme raekke faar automatisk et `_2`, `_3` … suffiks, saa data aldrig
 overskriver hinanden stille og roligt.
 
+Klimakompassets `Parameter`, `Parameter 2` og `Parameter 3` kan indeholde
+både tekst og tal. Importen gemmer derfor værdierne som tekst; opret Bubble-
+felterne `parameter`, `parameter_2` og `parameter_3` med typen **text**.
+
 ## Bruger-, virksomheds- og årsrelationer
 
 Opret felterne `user`, `company` og `year` på begge import-Data Types. Sæt

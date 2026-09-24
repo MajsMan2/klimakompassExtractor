@@ -119,7 +119,8 @@ function buildFields(headerRow) {
     }
 
     usedKeys.add(key);
-    fields.push({ column, originalKey, key });
+    const isParameterValue = /^parameter(?:\s+[23])?$/i.test(originalKey);
+    fields.push({ column, originalKey, key, isParameterValue });
   });
 
   return fields;
@@ -131,11 +132,16 @@ function rowsToRecords(rows, fields) {
     .map((row) => {
       const record = {};
 
-      for (const { column, key } of fields) {
+      for (const { column, key, isParameterValue } of fields) {
         const value = row[column];
         // Omitting missing values avoids overwriting Bubble defaults and is
         // safer than sending null or a display placeholder to typed fields.
-        if (!isMissingValue(value)) record[key] = value;
+        if (!isMissingValue(value)) {
+          // Klimakompasset uses Parameter/Parameter 2/Parameter 3 for mixed
+          // labels and numbers. Bubble fields have one fixed type, so preserve
+          // both kinds of values as text in these flexible parameter fields.
+          record[key] = isParameterValue ? String(value) : value;
+        }
       }
 
       return record;
